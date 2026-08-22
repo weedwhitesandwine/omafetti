@@ -2,7 +2,7 @@
 
 **It had to happen sooner or later — a useless plugin that blows confetti on your screen.**
 
-![Omafetti](preview.png)
+![Omafetti](preview.png?v=2)
 
 Press the hotkey and two party poppers go off in the bottom corners of the
 screen, firing paper up and inward until it spreads everywhere and flutters
@@ -20,7 +20,7 @@ whatever your desktop happens to look like. That's the shot above.
 theme's own colour file. Change theme and the confetti changes with it. Below
 is the same burst on the same wallpaper, in the theme's own reds:
 
-![Omafetti in theme colours](preview-theme.png)
+![Omafetti in theme colours](preview-theme.png?v=2)
 
 It stays faithful: a monochrome theme throws monochrome paper.
 
