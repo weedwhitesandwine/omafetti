@@ -68,15 +68,33 @@ state = sys.argv[1]
 sec = sys.argv[2] if sys.argv[2] in ("left", "center", "right") else "right"
 ID = "io.github.weedwhitesandwine.omafetti"
 p = os.path.expanduser("~/.config/omarchy/shell.json")
+# shell.json belongs to the user, not to this plugin, and it is read back
+# before it is rewritten — so it gets a ceiling at the read, plus the one byte
+# that identifies an over-sized file. Refusing leaves the file exactly as it
+# stands, which is the right answer for one this script cannot make sense of.
+MAX_SHELL_JSON = 4 * 1024 * 1024
 try:
-    with open(p) as f:
-        cfg = json.load(f)
+    with open(p, "rb") as f:
+        raw = f.read(MAX_SHELL_JSON + 1)
+    if len(raw) > MAX_SHELL_JSON:
+        sys.exit(0)
+    cfg = json.loads(raw.decode("utf-8", "replace"))
 except Exception:
     sys.exit(0)
+# Valid JSON of the wrong shape is not a config file, and setdefault will
+# happily hand back a string to be subscripted. Each level is checked.
+if not isinstance(cfg, dict):
+    sys.exit(0)
 
-bar = cfg.setdefault("bar", {})
-layout = bar.setdefault("layout", {})
-plugins = cfg.setdefault("plugins", [])
+if not isinstance(cfg.get("bar"), dict):
+    cfg["bar"] = {}
+bar = cfg["bar"]
+if not isinstance(bar.get("layout"), dict):
+    bar["layout"] = {}
+layout = bar["layout"]
+if not isinstance(cfg.get("plugins"), list):
+    cfg["plugins"] = []
+plugins = cfg["plugins"]
 
 def drop(seq):
     return [e for e in seq if not (isinstance(e, dict) and e.get("id") == ID)]
