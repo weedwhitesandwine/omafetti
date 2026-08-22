@@ -28,7 +28,9 @@ Ui.BarWidget {
     // the requested colour, so they sit in the bar in full colour while every
     // icon around them follows the theme. This one is drawn in the theme's
     // foreground like its neighbours.
-    text: "\uF1056"
+    // U+F1056, written as a surrogate pair: a \u escape takes exactly four hex
+    // digits, so "\uF1056" is the chevron U+F105 followed by a literal "6".
+    text: "\uDB84\uDC56"
     tooltipText: "Omafetti settings"
     onPressed: function(b) {
       if (!OmafettiState.overlay) return
