@@ -2,7 +2,7 @@
 
 **It had to happen sooner or later — a useless plugin that blows confetti on your screen.**
 
-![Omafetti](preview.png?v=2)
+![Omafetti](preview.png?v=3)
 
 Press the hotkey and two party poppers go off in the bottom corners of the
 screen, firing paper up and inward until it spreads everywhere and flutters
@@ -18,9 +18,9 @@ whatever your desktop happens to look like. That's the shot above.
 
 **Theme colours** — the hues of the active Omarchy theme, read from the
 theme's own colour file. Change theme and the confetti changes with it. Below
-is the same burst on the same wallpaper, in the theme's own reds:
+is the same burst on the same wallpaper, in the theme's own pinks:
 
-![Omafetti in theme colours](preview-theme.png?v=2)
+![Omafetti in theme colours](preview-theme.png?v=3)
 
 It stays faithful: a monochrome theme throws monochrome paper.
 
