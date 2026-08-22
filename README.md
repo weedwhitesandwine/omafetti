@@ -107,6 +107,22 @@ on its own:
 | `hyprctl reload` | Called by the helper so a new hotkey takes effect immediately |
 | `python3` | Called by the helper to edit `shell.json` as JSON rather than with text substitution |
 
+## Handling untrusted input
+
+The settings file is state that could have been restored from a backup, and the
+theme palette is a file the plugin does not own, so both are treated as data and
+never as code:
+
+- The hotkey is validated against a fixed shape — modifiers, then one key — in
+  both the settings card and the helper script, and refused outright if it does
+  not match. It is written into `bindings.lua` as Lua source, so refusing is the
+  only safe answer to anything unexpected; escaping would be answering the wrong
+  question.
+- Every text field on screen renders as plain text rather than rich text, so a
+  stored value cannot cause the shell to load a resource.
+- Both files are checked against a size ceiling before they are parsed or split,
+  because this runs inside a shell process that lives for days.
+
 ## Dependencies
 
 `bash`, `python3` and `hyprctl`, all of which Omarchy already installs. Nothing

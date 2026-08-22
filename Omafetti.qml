@@ -152,7 +152,7 @@ Item {
     root.draftPalette = root.osettings.palette || "classic"
     root.draftStyle = root.osettings.style || "corners"
     root.draftDensity = root.osettings.density || "normal"
-    root.draftShortcut = root.osettings.shortcut || ""
+    root.draftShortcut = root.validShortcut(root.osettings.shortcut) ? root.osettings.shortcut : ""
     root.draftBarIcon = root.osettings.barIcon !== false
     root.draftBarSection = root.osettings.barSection || "right"
     root.capturing = false
@@ -165,7 +165,7 @@ Item {
       palette: root.draftPalette,
       style: root.draftStyle,
       density: root.draftDensity,
-      shortcut: root.draftShortcut,
+      shortcut: root.validShortcut(root.draftShortcut) ? root.draftShortcut : "",
       barIcon: root.draftBarIcon,
       barSection: root.draftBarSection
     }
@@ -173,9 +173,21 @@ Item {
     root.saveSettings()
     Quickshell.execDetached(["bash", root.pluginDir + "/omafetti-ctl.sh", "bar",
                              s.barIcon ? "on" : "off", s.barSection])
-    if (s.shortcut) Quickshell.execDetached(["bash", root.pluginDir + "/omafetti-ctl.sh", "bind", s.shortcut])
-    else Quickshell.execDetached(["bash", root.pluginDir + "/omafetti-ctl.sh", "unbind"])
+    if (root.validShortcut(s.shortcut))
+      Quickshell.execDetached(["bash", root.pluginDir + "/omafetti-ctl.sh", "bind", s.shortcut])
+    else
+      Quickshell.execDetached(["bash", root.pluginDir + "/omafetti-ctl.sh", "unbind"])
     root.closeSettings()
+  }
+
+  // A hotkey is a fixed shape: one or more modifiers, then one key. This value
+  // is written into bindings.lua as Lua source, so anything not of that shape
+  // is refused rather than escaped — there is no reason for it to exist.
+  readonly property var shortcutPattern:
+    /^(SUPER|CTRL|ALT|SHIFT)( \+ (SUPER|CTRL|ALT|SHIFT))* \+ ([A-Z0-9]|F([1-9]|1[0-2]))$/
+
+  function validShortcut(s) {
+    return typeof s === "string" && s.length <= 40 && root.shortcutPattern.test(s)
   }
 
   function captureKey(event) {
@@ -196,14 +208,25 @@ Item {
     root.capturing = false
   }
 
+  // Settings are a handful of short values, and a theme palette is a short
+  // list of colours. Files far larger than that are neither, and this runs
+  // inside a shell process that lives for days — so they are refused before
+  // they are parsed or split rather than after.
+  readonly property int settingsCeiling: 16 * 1024
+  readonly property int paletteCeiling: 256 * 1024
+  readonly property int paletteMaxLines: 2000
+
   FileView {
     path: root.settingsFile
     printErrors: false
     watchChanges: true
     onLoaded: {
       try {
-        var s = JSON.parse(text())
-        if (s && typeof s === "object") root.osettings = s
+        var raw = text()
+        if (!raw || raw.length > root.settingsCeiling) return
+        var s = JSON.parse(raw)
+        if (!s || typeof s !== "object" || Array.isArray(s)) return
+        root.osettings = s
       } catch (e) {}
     }
     onFileChanged: reload()
@@ -237,8 +260,11 @@ Item {
                     "color1", "color2", "color3", "color4", "color5", "color6",
                     "color9", "color10", "color11", "color12", "color13", "color14"]
       var found = []
-      var lines = String(text()).split("\n")
-      for (var i = 0; i < lines.length; i++) {
+      var raw = String(text() || "")
+      if (raw.length > root.paletteCeiling) return
+      var lines = raw.split("\n")
+      var limit = Math.min(lines.length, root.paletteMaxLines)
+      for (var i = 0; i < limit; i++) {
         var m = lines[i].match(/^\s*([a-z_0-9]+)\s*=\s*"(#[0-9a-fA-F]{6})"/)
         if (!m) continue
         if (wanted.indexOf(m[1]) < 0) continue
@@ -251,6 +277,7 @@ Item {
 
   // ------------------------------------------------------------- components
   component SettingLabel: Text {
+    textFormat: Text.PlainText
     width: root.labelWidth
     anchors.verticalCenter: parent.verticalCenter
     color: root.foreground
@@ -273,6 +300,7 @@ Item {
     border.width: pill.active ? 1 : 0
 
     Text {
+      textFormat: Text.PlainText
       id: pillLabel
       anchors.centerIn: parent
       text: pill.label
@@ -397,6 +425,7 @@ Item {
           spacing: Style.spacing.xl
 
           Text {
+            textFormat: Text.PlainText
             width: parent.width
             text: root.view === "greeter" ? "🎉 welcome to Omafetti" : "Omafetti settings"
             color: root.foreground
@@ -405,6 +434,7 @@ Item {
           }
 
           Text {
+            textFormat: Text.PlainText
             width: parent.width
             wrapMode: Text.WordWrap
             visible: root.view === "greeter"
@@ -430,6 +460,7 @@ Item {
               border.width: 1
 
               Text {
+                textFormat: Text.PlainText
                 anchors.centerIn: parent
                 text: root.capturing ? "press your keys…"
                   : (root.draftShortcut !== "" ? root.draftShortcut : "none set")
@@ -448,6 +479,7 @@ Item {
           }
 
           Text {
+            textFormat: Text.PlainText
             width: parent.width
             visible: root.captureNote !== "" || root.capturing
             text: root.captureNote !== "" ? root.captureNote
@@ -581,6 +613,7 @@ Item {
           }
 
           Text {
+            textFormat: Text.PlainText
             width: parent.width
             visible: !root.draftBarIcon && root.draftShortcut === ""
             wrapMode: Text.WordWrap
@@ -592,6 +625,7 @@ Item {
           }
 
           Text {
+            textFormat: Text.PlainText
             width: parent.width
             wrapMode: Text.WordWrap
             text: "Applying saves these choices, updates Omafetti's own marked hotkey block in bindings.lua, and adds or removes its bar icon. Nothing else is touched."
