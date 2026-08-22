@@ -1,0 +1,35 @@
+import QtQuick
+import qs.Commons
+import qs.Ui as Ui
+import "."
+
+// Optional bar icon. It does one thing: open Omafetti's settings. Throwing
+// confetti is the hotkey's job — an icon you might click by accident is the
+// wrong place for it.
+// (qs.Ui is imported under a namespace because this file is itself named
+// BarWidget.qml — a bare `BarWidget` would resolve to the file itself.)
+Ui.BarWidget {
+  id: root
+  moduleName: "io.github.weedwhitesandwine.omafetti"
+
+  implicitWidth: button.implicitWidth
+  implicitHeight: button.implicitHeight
+
+  // Shape contract for shell summon/toggle routing — forward to the overlay.
+  readonly property bool opened: OmafettiState.overlay ? OmafettiState.overlay.settingsOpen === true : false
+  function open() { if (OmafettiState.overlay) OmafettiState.overlay.openSettings() }
+  function close() { if (OmafettiState.overlay) OmafettiState.overlay.closeSettings() }
+
+  Ui.BarIconButton {
+    id: button
+    anchors.fill: parent
+    bar: root.bar
+    text: "🎉"
+    tooltipText: "Omafetti settings"
+    onPressed: function(b) {
+      if (!OmafettiState.overlay) return
+      if (OmafettiState.overlay.settingsOpen) OmafettiState.overlay.closeSettings()
+      else OmafettiState.overlay.openSettings()
+    }
+  }
+}

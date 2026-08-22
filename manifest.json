@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "id": "io.github.weedwhitesandwine.omafetti",
+  "name": "Omafetti",
+  "version": "0.1.0",
+  "author": "weedwhitesandwine",
+  "license": "MIT",
+  "description": "It had to happen sooner or later — a useless plugin that blows confetti on your screen",
+  "kinds": [
+    "overlay",
+    "bar-widget"
+  ],
+  "keepLoaded": true,
+  "entryPoints": {
+    "overlay": "Omafetti.qml",
+    "barWidget": "BarWidget.qml"
+  },
+  "barWidget": {
+    "displayName": "Omafetti",
+    "description": "Party popper icon that opens Omafetti's settings; shown only if enabled in those settings",
+    "category": "Other",
+    "allowMultiple": false,
+    "defaultSection": "right"
+  }
+}
