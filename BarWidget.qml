@@ -24,7 +24,11 @@ Ui.BarWidget {
     id: button
     anchors.fill: parent
     bar: root.bar
-    text: "🎉"
+    // A font glyph, not the emoji: emoji render as colour bitmaps and ignore
+    // the requested colour, so they sit in the bar in full colour while every
+    // icon around them follows the theme. This one is drawn in the theme's
+    // foreground like its neighbours.
+    text: "\uF1056"
     tooltipText: "Omafetti settings"
     onPressed: function(b) {
       if (!OmafettiState.overlay) return
