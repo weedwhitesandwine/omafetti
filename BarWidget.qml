@@ -24,13 +24,10 @@ Ui.BarWidget {
     id: button
     anchors.fill: parent
     bar: root.bar
-    // A font glyph, not the emoji: emoji render as colour bitmaps and ignore
-    // the requested colour, so they sit in the bar in full colour while every
-    // icon around them follows the theme. This one is drawn in the theme's
-    // foreground like its neighbours.
-    // U+F1056, written as a surrogate pair: a \u escape takes exactly four hex
-    // digits, so "\uF1056" is the chevron U+F105 followed by a literal "6".
-    text: "\uDB84\uDC56"
+    // The emoji, deliberately. It renders as a colour bitmap and so ignores
+    // the theme's foreground colour, unlike its monochrome neighbours — that
+    // is accepted rather than worked around.
+    text: "🎉"
     tooltipText: "Omafetti settings"
     onPressed: function(b) {
       if (!OmafettiState.overlay) return
