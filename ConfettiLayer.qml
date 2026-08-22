@@ -59,14 +59,18 @@ Item {
       p.vx = Math.cos(ang) * sp
       p.vy = Math.sin(ang) * sp
     } else {
-      // Corners: two party poppers in the bottom corners firing up and inward
-      // hard enough to clear the top of the screen. Launch speeds are given in
-      // screens-per-second so the burst reaches the top of any monitor.
+      // Corners: the same cone as the cannon, fired twice — once from each
+      // bottom corner, aimed diagonally up and inward at roughly 45°. Launch
+      // speeds are given in screens-per-second, so the plume clears the top of
+      // any monitor.
       var left = Math.random() < 0.5
-      p.x = left ? layer.rnd(-30, 90) : w - layer.rnd(-30, 90)
-      p.y = h + layer.rnd(0, 40)
-      p.vx = (left ? 1 : -1) * h * layer.bell(0.25, 2.1)
-      p.vy = -h * layer.bell(1.5, 3.0)
+      var cSpread = layer.bell(-0.85, 0.85)
+      var cAng = (left ? -Math.PI / 4 : -3 * Math.PI / 4) + cSpread
+      var cSp = h * layer.bell(1.3, 3.4) * (1 - 0.3 * Math.abs(cSpread))
+      p.x = left ? layer.rnd(-30, 60) : w - layer.rnd(-30, 60)
+      p.y = h + layer.rnd(0, 30)
+      p.vx = Math.cos(cAng) * cSp
+      p.vy = Math.sin(cAng) * cSp
     }
 
     var shape = Math.random()
