@@ -11,12 +11,18 @@ typing straight through the celebration.
 
 ## Colours
 
-Two modes, chosen in the settings card:
+Two modes, chosen in the settings card.
 
-- **Classic confetti** — the colours a real paper cannon comes loaded with,
-  whatever your desktop happens to look like.
-- **Theme colours** — the named hues of the active Omarchy theme, read from
-  the theme's own `colors.toml`. Change theme and the confetti changes with it.
+**Classic confetti** — the colours a real paper cannon comes loaded with,
+whatever your desktop happens to look like. That's the shot above.
+
+**Theme colours** — the hues of the active Omarchy theme, read from the
+theme's own colour file. Change theme and the confetti changes with it. Below
+is the same burst on the same wallpaper, in the theme's own reds:
+
+![Omafetti in theme colours](preview-theme.png)
+
+It stays faithful: a monochrome theme throws monochrome paper.
 
 ## Settings
 
