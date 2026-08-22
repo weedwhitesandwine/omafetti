@@ -337,7 +337,7 @@ Item {
     BorderSurface {
       id: card
       width: Math.min(Style.space(520), settingsPanel.width - Style.gapsOut * 2)
-      height: Math.min(form.implicitHeight + root.contentPad * 2 + card.borderTop + card.borderBottom,
+      height: Math.min(form.implicitHeight + card.contentTopInset + card.contentBottomInset,
                        settingsPanel.height - Style.gapsOut * 2)
       anchors.centerIn: parent
       color: root.background
@@ -347,9 +347,15 @@ Item {
 
       MouseArea { anchors.fill: parent; onClicked: {} }
 
+      // BorderSurface exposes its insets but does not apply them — content
+      // has to inset itself or it renders under the border.
       Item {
         id: keyCatcher
         anchors.fill: parent
+        anchors.topMargin: card.contentTopInset
+        anchors.rightMargin: card.contentRightInset
+        anchors.bottomMargin: card.contentBottomInset
+        anchors.leftMargin: card.contentLeftInset
         focus: true
 
         Keys.priority: Keys.BeforeItem
