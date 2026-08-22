@@ -78,9 +78,9 @@ Item {
   }
 
   function densityCount(d) {
-    if (d === "light") return 110
-    if (d === "heavy") return 420
-    return 220
+    if (d === "light") return 250
+    if (d === "heavy") return 1150
+    return 600
   }
 
   // Live values used by the next burst — the drafts while the settings card is

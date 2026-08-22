@@ -13,9 +13,9 @@ Item {
 
   property var palette: ["#ffffff"]
   property string style: "corners"
-  property int pieceCount: 220
+  property int pieceCount: 600
   // Room for a second burst thrown before the first has landed.
-  readonly property int poolSize: Math.min(700, layer.pieceCount * 2)
+  readonly property int poolSize: Math.min(1600, Math.round(layer.pieceCount * 1.4))
 
   signal finished()
 
@@ -26,10 +26,16 @@ Item {
 
   // Air drag is what makes paper fall slowly: terminal speed is gravity/drag,
   // so these two numbers together set the whole feel of the fall.
-  readonly property real gravity: 900
-  readonly property real drag: 2.0
+  readonly property real gravity: 1000
+  readonly property real drag: 1.3
 
   function rnd(a, b) { return a + Math.random() * (b - a) }
+
+  // Triangular distribution: values cluster in the middle instead of filling
+  // a range evenly. Uniform speeds and angles give a burst hard, straight
+  // edges — a visible wedge or box — where a real popper fades out at the
+  // limits of its throw.
+  function bell(a, b) { return a + (Math.random() + Math.random()) / 2 * (b - a) }
   function pickOne(arr) { return arr[Math.floor(Math.random() * arr.length)] }
 
   function makePiece() {
@@ -41,21 +47,26 @@ Item {
       p.x = layer.rnd(-40, w + 40)
       p.y = layer.rnd(-h * 0.7, -20)
       p.vx = layer.rnd(-90, 90)
-      p.vy = layer.rnd(60, 220)
+      p.vy = layer.rnd(80, 260)
     } else if (layer.style === "cannon") {
-      var ang = layer.rnd(-Math.PI / 2 - 0.55, -Math.PI / 2 + 0.55)
-      var sp = layer.rnd(1000, 2000)
-      p.x = w / 2 + layer.rnd(-30, 30)
-      p.y = h + 10
+      // A cone from the bottom centre. Speed falls off towards the edges of
+      // the cone, so the burst has a soft round front rather than a wedge.
+      var spread = layer.bell(-1.05, 1.05)
+      var ang = -Math.PI / 2 + spread
+      var sp = h * layer.bell(1.1, 3.2) * (1 - 0.3 * Math.abs(spread))
+      p.x = w / 2 + layer.rnd(-40, 40)
+      p.y = h + layer.rnd(0, 30)
       p.vx = Math.cos(ang) * sp
       p.vy = Math.sin(ang) * sp
     } else {
-      // Corners: two cannons in the bottom corners firing up and inward.
+      // Corners: two party poppers in the bottom corners firing up and inward
+      // hard enough to clear the top of the screen. Launch speeds are given in
+      // screens-per-second so the burst reaches the top of any monitor.
       var left = Math.random() < 0.5
-      p.x = left ? layer.rnd(-30, 20) : w - layer.rnd(-30, 20)
-      p.y = h + 10
-      p.vx = (left ? 1 : -1) * layer.rnd(500, 1500)
-      p.vy = -layer.rnd(1100, 2000)
+      p.x = left ? layer.rnd(-30, 90) : w - layer.rnd(-30, 90)
+      p.y = h + layer.rnd(0, 40)
+      p.vx = (left ? 1 : -1) * h * layer.bell(0.25, 2.1)
+      p.vy = -h * layer.bell(1.5, 3.0)
     }
 
     var shape = Math.random()
