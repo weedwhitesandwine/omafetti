@@ -225,13 +225,21 @@ Item {
     printErrors: false
     watchChanges: true
     onLoaded: {
+      // Themes name their colours one of two ways. Omarchy's own use words —
+      // red, green, blue and so on. Third-party themes very often ship the
+      // ANSI numbering instead, color0 to color15. Read both, or a theme of
+      // the second kind looks like it has no colours at all. color0/8 are the
+      // blacks and color7/15 the whites, so they are left out: confetti in the
+      // background colour is invisible confetti.
       var wanted = ["red", "orange", "yellow", "green", "cyan", "blue", "magenta",
                     "bright_red", "bright_yellow", "bright_green", "bright_cyan",
-                    "bright_blue", "bright_magenta", "accent"]
+                    "bright_blue", "bright_magenta", "accent",
+                    "color1", "color2", "color3", "color4", "color5", "color6",
+                    "color9", "color10", "color11", "color12", "color13", "color14"]
       var found = []
       var lines = String(text()).split("\n")
       for (var i = 0; i < lines.length; i++) {
-        var m = lines[i].match(/^\s*([a-z_]+)\s*=\s*"(#[0-9a-fA-F]{6})"/)
+        var m = lines[i].match(/^\s*([a-z_0-9]+)\s*=\s*"(#[0-9a-fA-F]{6})"/)
         if (!m) continue
         if (wanted.indexOf(m[1]) < 0) continue
         if (found.indexOf(m[2]) < 0) found.push(m[2])
