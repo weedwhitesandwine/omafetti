@@ -78,9 +78,8 @@ and the desktop celebrates for you.
 
 ## What it writes, and when
 
-Omafetti has no network access, no background process, no timers that outlive a
-burst, and no privileges: it never uses `sudo` or `pkexec` and does nothing as
-root.
+Omafetti runs entirely as your own user. It has no network access, no
+background process, and no timers that outlive a burst.
 
 **Files it reads**
 
