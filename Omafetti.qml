@@ -33,6 +33,7 @@ Item {
   property color selectedText: Color.menu.selectedText
   property var borderSpec: Border.surfaceSpec("menu", "border", border, Math.max(1, Style.space(2)))
   readonly property int cornerRadius: Style.cornerRadius
+  readonly property int labelWidth: Style.space(170)
   property string fontFamily: Style.font.menuFamily
 
   // --------------------------------------------------------------- settings
@@ -231,7 +232,7 @@ Item {
 
   // ------------------------------------------------------------- components
   component SettingLabel: Text {
-    width: Style.space(150)
+    width: root.labelWidth
     anchors.verticalCenter: parent.verticalCenter
     color: root.foreground
     opacity: 0.75
@@ -245,8 +246,8 @@ Item {
     property string label
     property bool active: false
     signal picked()
-    width: pillLabel.width + Style.spacing.md * 2
-    height: Style.space(28)
+    width: pillLabel.width + Style.spacing.lg * 2
+    height: Style.space(32)
     radius: root.cornerRadius
     color: pill.active ? root.selectedBackground : "transparent"
     border.color: pill.active ? root.foreground : root.border
@@ -336,14 +337,14 @@ Item {
 
     BorderSurface {
       id: card
-      width: Math.min(Style.space(520), settingsPanel.width - Style.gapsOut * 2)
+      width: Math.min(Style.space(660), settingsPanel.width - Style.gapsOut * 2)
       height: Math.min(form.implicitHeight + card.contentTopInset + card.contentBottomInset,
                        settingsPanel.height - Style.gapsOut * 2)
       anchors.centerIn: parent
       color: root.background
       borderSpec: root.borderSpec
       radius: root.cornerRadius
-      padding: root.contentPad
+      padding: Style.space(24)
 
       MouseArea { anchors.fill: parent; onClicked: {} }
 
@@ -374,7 +375,7 @@ Item {
         Column {
           id: form
           width: parent.width
-          spacing: Style.spacing.md
+          spacing: Style.spacing.xl
 
           Text {
             width: parent.width
@@ -402,8 +403,8 @@ Item {
             SettingLabel { text: "Hotkey" }
 
             Rectangle {
-              width: Style.space(180)
-              height: Style.space(28)
+              width: Style.space(210)
+              height: Style.space(32)
               radius: root.cornerRadius
               color: "transparent"
               border.color: root.border
@@ -459,13 +460,13 @@ Item {
 
           // The palette being chosen, shown as the colours it will actually use.
           Row {
-            x: Style.space(150) + Style.spacing.md
+            x: root.labelWidth + Style.spacing.md
             spacing: Style.space(4)
             Repeater {
               model: root.paletteFor(root.draftPalette)
               Rectangle {
                 required property var modelData
-                width: Style.space(16); height: Style.space(16)
+                width: Style.space(18); height: Style.space(18)
                 radius: width / 2
                 color: modelData
               }
@@ -605,6 +606,4 @@ Item {
       }
     }
   }
-
-  readonly property int contentPad: Style.spacing.panelPadding
 }
