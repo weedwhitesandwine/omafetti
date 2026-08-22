@@ -99,6 +99,7 @@ Item {
   signal throwNow()
 
   function throwConfetti() {
+    themeColors.reload()
     root.flying = true
     // The panels need one layout pass before their layers know how big the
     // screen is; firing into a zero-sized layer would throw nothing.
@@ -208,8 +209,18 @@ Item {
     onFileChanged: reload()
   }
 
-  // The active theme's palette. Read-only, and re-read when the theme changes.
+  // Switching theme replaces the whole theme directory, which kills a file
+  // watch on the old colors.toml — the shell has the same problem and solves
+  // it by having the theme pushed to it over IPC instead. Omafetti has no such
+  // channel, so it watches the foundational colours the shell *does* update
+  // live, and re-reads the palette file whenever they change.
+  readonly property string themeProbe: "" + Color.background + Color.foreground
+                                          + Color.accent + Color.urgent
+  onThemeProbeChanged: themeColors.reload()
+
+  // The active theme's palette. Read-only.
   FileView {
+    id: themeColors
     path: root.home + "/.local/state/omarchy/current/theme/colors.toml"
     printErrors: false
     watchChanges: true
