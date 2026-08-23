@@ -2,10 +2,10 @@
   "schemaVersion": 1,
   "id": "io.github.weedwhitesandwine.omafetti",
   "name": "Omafetti",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "author": "weedwhitesandwine",
   "license": "MIT",
-  "description": "It had to happen sooner or later — a useless plugin that blows confetti on your screen",
+  "description": "It had to happen sooner or later \u2014 a useless plugin that blows confetti on your screen",
   "kinds": [
     "overlay",
     "bar-widget"

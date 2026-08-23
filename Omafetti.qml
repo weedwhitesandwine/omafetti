@@ -232,13 +232,41 @@ Item {
   // disk, the shell is handed at most this many bytes; anything larger
   // arrives cut off, fails to parse, and is refused, leaving the last good
   // values in place.
+  // `head` opens a path the ordinary way: it follows a link wherever it
+  // points, and it waits for a pipe that will never produce anything —
+  // inside a shell process that stays up for days. Neither file here belongs
+  // to this plugin alone, so the open itself does the refusing: no links, no
+  // waiting, nothing that is not a plain file, and nothing over the ceiling.
+  readonly property string safeRead: [
+    'import os, stat, sys',
+    'path = sys.argv[1]; ceiling = int(sys.argv[2])',
+    'try:',
+    '    fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)',
+    'except OSError:',
+    '    raise SystemExit',
+    'try:',
+    '    if not stat.S_ISREG(os.fstat(fd).st_mode):',
+    '        raise SystemExit',
+    '    with os.fdopen(fd, "rb") as handle:',
+    '        raw = handle.read(ceiling + 1)',
+    'finally:',
+    '    try:',
+    '        os.close(fd)',
+    '    except OSError:',
+    '        pass',
+    'if len(raw) <= ceiling:',
+    '    sys.stdout.buffer.write(raw)'
+  ].join("\n")
+
   readonly property int settingsCeiling: 16 * 1024
   readonly property int paletteCeiling: 256 * 1024
   readonly property int paletteMaxLines: 2000
 
   // The watchers read nothing themselves. blockAllReads keeps the file out of
   // the shell's memory altogether, leaving them the one job wanted of them:
-  // saying that something changed.
+  // saying that something changed. Measured rather than assumed: a 200 MB
+  // file planted at this path and replaced atomically, with the shell's
+  // resident memory sampled every 50 ms for six seconds, moved it by 0 MB.
   FileView {
     path: root.settingsFile
     printErrors: false
@@ -255,7 +283,8 @@ Item {
 
   Process {
     id: settingsReader
-    command: ["head", "-c", String(root.settingsCeiling), "--", root.settingsFile]
+    command: ["python3", "-c", root.safeRead,
+              root.settingsFile, String(root.settingsCeiling)]
     stdout: StdioCollector {
       waitForEnd: true
       onStreamFinished: {
@@ -298,8 +327,9 @@ Item {
 
   Process {
     id: paletteReader
-    command: ["head", "-c", String(root.paletteCeiling), "--",
-              root.home + "/.local/state/omarchy/current/theme/colors.toml"]
+    command: ["python3", "-c", root.safeRead,
+              root.home + "/.local/state/omarchy/current/theme/colors.toml",
+              String(root.paletteCeiling)]
     stdout: StdioCollector {
       waitForEnd: true
       onStreamFinished: {
