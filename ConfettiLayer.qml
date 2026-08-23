@@ -15,13 +15,30 @@ Item {
   property string style: "corners"
   property int pieceCount: 600
   // Room for a second burst thrown before the first has landed.
-  readonly property int poolSize: Math.min(1600, Math.round(layer.pieceCount * 1.4))
+  readonly property int wantedPoolSize: Math.min(1600, Math.round(layer.pieceCount * 1.4))
+
+  // The pool only ever changes size while it is empty, so poolSize is set
+  // rather than bound. Shrinking it with pieces still in the air would strand
+  // every slot above the new size: step() would stop visiting them, so they
+  // would never be freed and never decrement `alive`, finished() would never
+  // be emitted, and the frame callback would keep running for the life of the
+  // shell process. Density is changed from the settings card, which is exactly
+  // when a burst can still be falling.
+  property int poolSize: 0
+  Component.onCompleted: layer.poolSize = layer.wantedPoolSize
+  onWantedPoolSizeChanged: layer.applyPoolSize()
+
+  function applyPoolSize() {
+    if (layer.poolSize === layer.wantedPoolSize || layer.alive > 0) return
+    layer.clear()
+    layer.poolSize = layer.wantedPoolSize
+  }
 
   signal finished()
 
   property int alive: 0
   // Slot i holds the state for repeater.itemAt(i); null means free.
-  property var pieces: new Array(700)
+  property var pieces: new Array(1600)
   property real clock: 0
 
   // Air drag is what makes paper fall slowly: terminal speed is gravity/drag,
@@ -93,8 +110,11 @@ Item {
     return p
   }
 
+  // Returns whether anything was actually thrown: a layer whose panel has not
+  // been given a size yet must not be counted as flying, or the burst is
+  // recorded as in progress and never lands.
   function fire() {
-    if (layer.width <= 0 || layer.height <= 0) return
+    if (layer.width <= 0 || layer.height <= 0) return false
     var placed = 0
     for (var i = 0; i < layer.poolSize && placed < layer.pieceCount; i++) {
       if (layer.pieces[i]) continue
@@ -114,6 +134,7 @@ Item {
     }
     layer.alive += placed
     if (layer.alive > 0) frames.running = true
+    return placed > 0
   }
 
   function clear() {
@@ -163,6 +184,7 @@ Item {
     if (layer.alive <= 0) {
       frames.running = false
       layer.clock = 0
+      layer.applyPoolSize()
       layer.finished()
     }
   }

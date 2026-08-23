@@ -78,8 +78,8 @@ and the desktop celebrates for you.
 
 ## What it writes, and when
 
-Omafetti runs entirely as your own user. It has no network access, no
-background process, and no timers that outlive a burst.
+Omafetti runs as your own user. Everything it reads, writes and runs is listed
+below, and that list is complete.
 
 **Files it reads**
 
@@ -97,15 +97,18 @@ on its own:
 | `~/.config/hypr/bindings.lua` | Only Omafetti's own marked block, between `-- >>> omafetti hotkey` and `-- <<< omafetti hotkey`. Everything outside those two lines is copied through untouched |
 | `~/.config/omarchy/shell.json` | Only Omafetti's own `{"id": "io.github.weedwhitesandwine.omafetti"}` entry, moved between the bar layout and the enabled-plugins list |
 
-**Processes it runs** — all of them only on **Apply**:
+**Processes it runs**
 
-| Command | Why |
+| Command | When |
 |---|---|
-| `bash -c 'mkdir -p … && mktemp … && printf … && mv …'` | Save `settings.json`, staged under an exclusively-created temporary name and renamed into place |
-| `bash omafetti-ctl.sh bind`/`unbind` | Rewrite Omafetti's marked hotkey block |
-| `bash omafetti-ctl.sh bar on`/`off` | Show or hide the bar icon |
-| `hyprctl reload` | Called by the helper so a new hotkey takes effect immediately |
-| `python3` | Called by the helper to edit `shell.json` as JSON rather than with text substitution |
+| `python3 -c` (a short reader, inline below) | On load, whenever `settings.json` changes, and whenever the theme changes — to read those two files to a size ceiling |
+| `bash -c 'mkdir -p … && mktemp … && printf … && mv …'` | On **Apply** — save `settings.json`, staged under an exclusively-created temporary name and renamed into place |
+| `bash omafetti-ctl.sh bind`/`unbind` | On **Apply** — rewrite Omafetti's marked hotkey block |
+| `bash omafetti-ctl.sh bar on`/`off` | On **Apply** — show or hide the bar icon |
+| `hyprctl reload` | Run by the helper after a hotkey change, so the new hotkey takes effect immediately |
+| `python3` | Run by the helper to edit `shell.json` as JSON rather than with text substitution |
+
+Every one of them exits as soon as it has done its job.
 
 ## Handling untrusted input
 
@@ -120,16 +123,27 @@ never as code:
   question.
 - Every text field on screen renders as plain text rather than rich text, so a
   stored value cannot cause the shell to load a resource.
-- Both files stop at a size ceiling as they are read, not after: the shell
-  reads them through `head`, so it is handed at most the ceiling however large
-  the file on disk actually is, and anything larger arrives cut off, fails to
-  parse, and is refused — this runs inside a shell process that lives for days.
-- Every file the plugin replaces is staged under an unpredictable name created
-  exclusively (`mktemp`/`mkstemp`, which never follow a symlink) in a directory
-  first verified to be owned by the user, then renamed over the destination in
-  one atomic step. A symlink planted at any name it writes — including
-  `shell.json` and `bindings.lua` staging — cannot redirect the write onto
-  another file, and a FIFO planted at `shell.json` cannot park the read forever.
+- Both files stop at a size ceiling as they are read, not after. They are read
+  through a short `python3` helper that opens with `O_NOFOLLOW` and
+  `O_NONBLOCK`, confirms the descriptor is a regular file, and reads at most the
+  ceiling plus the one byte that identifies an over-sized file. A symlink is
+  refused, a FIFO cannot park the read, and anything past the ceiling is
+  refused — leaving the last good values in place. This runs inside a shell
+  process that lives for days.
+- `bindings.lua` and `shell.json` belong to you, not to Omafetti. Each is
+  resolved through any symlink first, because dotfile managers such as stow and
+  chezmoi legitimately link these into a repository, and is edited only once the
+  resolved file and its directory are confirmed to be yours and writable by
+  nobody else. The replacement is staged in that same directory under an
+  unpredictable name created exclusively (`mktemp`/`mkstemp`, which never follow
+  a symlink) and renamed over the target in one atomic step — so a managed
+  symlink keeps pointing where it pointed, the repository copy is the one that
+  changes, and a symlink planted at a staging name cannot redirect the write.
+- The hotkey block is rewritten only when its two markers form exactly one
+  properly ordered pair. If the block has been half-removed — by hand, or by a
+  merge in a dotfiles repository — the file is left exactly as it stands and the
+  reason is printed, rather than being rewritten from an opening marker that has
+  no end.
 
 ## Dependencies
 

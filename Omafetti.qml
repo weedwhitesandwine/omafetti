@@ -159,7 +159,7 @@ Item {
   function saveSettings() {
     if (!root.settingsLoaded) return
     Quickshell.execDetached(["bash", "-c",
-      'd=$(dirname "$2") && mkdir -p "$d" && [ -O "$d" ] && t=$(mktemp "$2.XXXXXXXX") && printf "%s\\n" "$1" > "$t" && mv -f "$t" "$2"', "--",
+      'd=$(dirname "$2") && mkdir -p -m 700 "$d" && [ -O "$d" ] && [ -z "$(find "$d" -maxdepth 0 -perm /022)" ] && t=$(mktemp "$2.XXXXXXXX") && printf "%s\\n" "$1" > "$t" && mv -f "$t" "$2"', "--",
       JSON.stringify(root.osettings), root.settingsFile])
   }
 
@@ -245,21 +245,24 @@ Item {
     'path = sys.argv[1]; ceiling = int(sys.argv[2])',
     'try:',
     '    fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)',
+    'except FileNotFoundError:',
+    '    raise SystemExit(2)',
     'except OSError:',
-    '    raise SystemExit',
-    'raw = b""',
+    '    raise SystemExit(1)',
     'try:',
-    '    if stat.S_ISREG(os.fstat(fd).st_mode):',
-    '        with os.fdopen(fd, "rb") as handle:',
-    '            fd = None',
-    '            raw = handle.read(ceiling + 1)',
+    '    if not stat.S_ISREG(os.fstat(fd).st_mode):',
+    '        raise SystemExit(1)',
+    '    with os.fdopen(fd, "rb") as handle:',
+    '        fd = None',
+    '        raw = handle.read(ceiling + 1)',
     'except OSError:',
-    '    raw = b""',
+    '    raise SystemExit(1)',
     'finally:',
     '    if fd is not None:',
     '        os.close(fd)',
-    'if raw and len(raw) <= ceiling:',
-    '    sys.stdout.buffer.write(raw)'
+    'if len(raw) > ceiling:',
+    '    raise SystemExit(1)',
+    'sys.stdout.buffer.write(raw)'
   ].join("\n")
 
   readonly property int settingsCeiling: 16 * 1024
@@ -432,16 +435,51 @@ Item {
           pieceCount: root.activeCount
 
           onFinished: {
+            if (!confettiPanel.layerBusy) return
+            confettiPanel.layerBusy = false
             root.busyLayers = Math.max(0, root.busyLayers - 1)
             if (root.busyLayers === 0) root.flying = false
           }
         }
 
+        // One layer counts once, however many bursts merge into its pool:
+        // ConfettiLayer emits finished() a single time when the pool drains,
+        // so counting throws rather than layers would leave busyLayers stuck
+        // above zero, `opened` stuck true, and the hotkey routed to close()
+        // until the failsafe fired.
+        property bool layerBusy: false
+        property int fireAttempts: 0
+
+        // A PanelWindow is built from scratch each time `flying` flips true and
+        // needs a Wayland layer-shell configure round trip before it has a
+        // size; one 32 ms tick does not always cover that on a cold path or a
+        // newly connected monitor. Firing into a zero-sized layer throws
+        // nothing, so a layer that is not ready is retried rather than counted,
+        // and one that never becomes ready gives the burst up promptly instead
+        // of pinning the hotkey for twelve seconds.
+        function tryFire() {
+          if (confettiPanel.layerBusy) { layer.fire(); return }
+          if (layer.fire()) {
+            confettiPanel.layerBusy = true
+            root.busyLayers++
+            return
+          }
+          confettiPanel.fireAttempts++
+          if (confettiPanel.fireAttempts <= 8) { fireRetry.restart(); return }
+          if (root.busyLayers === 0) root.flying = false
+        }
+
+        Timer {
+          id: fireRetry
+          interval: 32
+          onTriggered: confettiPanel.tryFire()
+        }
+
         Connections {
           target: root
           function onThrowNow() {
-            root.busyLayers++
-            layer.fire()
+            confettiPanel.fireAttempts = 0
+            confettiPanel.tryFire()
           }
         }
       }
@@ -449,11 +487,16 @@ Item {
   }
 
   // A burst that somehow never lands must not leave a surface up forever.
+  // Restarted on every throw rather than bound to `flying`, so a second burst
+  // thrown eleven seconds into the first is not cut off mid-air.
   Timer {
+    id: flightFailsafe
     interval: 12000
-    running: root.flying
     onTriggered: { root.busyLayers = 0; root.flying = false }
   }
+
+  onThrowNow: flightFailsafe.restart()
+  onFlyingChanged: { if (!root.flying) flightFailsafe.stop() }
 
   // ------------------------------------------------------- the settings card
   PanelWindow {
