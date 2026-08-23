@@ -39,7 +39,13 @@ case "$1" in
       echo "omafetti-ctl: refusing hotkey that is not modifiers plus one key: $key" >&2
       exit 1
     fi
-    tmp=$(mktemp)
+    # The replacement is staged in the same directory as bindings.lua and
+    # renamed over it, so the swap is a single atomic step — staging it in
+    # /tmp and mv-ing across filesystems degrades to a copy, which can leave
+    # a half-written config if interrupted. mktemp creates the stage file
+    # exclusively under a random name, so nothing can have been planted at it.
+    tmp=$(mktemp "$BIND_FILE.XXXXXXXX")
+    trap 'rm -f "$tmp"' EXIT
     strip_block > "$tmp"
     {
       echo ""
@@ -47,14 +53,19 @@ case "$1" in
       printf 'o.bind("%s", "Omafetti (throw confetti)", "omarchy-shell shell summon %s")\n' "$key" "$ID"
       echo "$MARK_OUT"
     } >> "$tmp"
-    mv "$tmp" "$BIND_FILE"
+    chmod --reference="$BIND_FILE" "$tmp" 2>/dev/null || chmod 644 "$tmp"
+    mv -f "$tmp" "$BIND_FILE"
+    trap - EXIT
     hyprctl reload >/dev/null 2>&1 || true
     ;;
   unbind)
     [[ -f $BIND_FILE ]] || exit 0
-    tmp=$(mktemp)
+    tmp=$(mktemp "$BIND_FILE.XXXXXXXX")
+    trap 'rm -f "$tmp"' EXIT
     strip_block > "$tmp"
-    mv "$tmp" "$BIND_FILE"
+    chmod --reference="$BIND_FILE" "$tmp" 2>/dev/null || chmod 644 "$tmp"
+    mv -f "$tmp" "$BIND_FILE"
+    trap - EXIT
     hyprctl reload >/dev/null 2>&1 || true
     ;;
   bar)
@@ -63,7 +74,7 @@ case "$1" in
     # shell.json; hidden (but the plugin still enabled) when the entry lives
     # in the plugins list instead. The shell hot-reloads the file.
     python3 - "$2" "${3:-right}" <<'PY'
-import json, os, sys
+import json, os, stat, sys, tempfile
 state = sys.argv[1]
 sec = sys.argv[2] if sys.argv[2] in ("left", "center", "right") else "right"
 ID = "io.github.weedwhitesandwine.omafetti"
@@ -72,13 +83,25 @@ p = os.path.expanduser("~/.config/omarchy/shell.json")
 # before it is rewritten — so it gets a ceiling at the read, plus the one byte
 # that identifies an over-sized file. Refusing leaves the file exactly as it
 # stands, which is the right answer for one this script cannot make sense of.
+# The open refuses symlinks and non-regular files, so a planted link cannot
+# redirect the read and a FIFO cannot block it forever.
 MAX_SHELL_JSON = 4 * 1024 * 1024
 try:
-    with open(p, "rb") as f:
-        raw = f.read(MAX_SHELL_JSON + 1)
+    fd = os.open(p, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
+    try:
+        if not stat.S_ISREG(os.fstat(fd).st_mode):
+            sys.exit(0)
+        with os.fdopen(fd, "rb") as f:
+            fd = None
+            raw = f.read(MAX_SHELL_JSON + 1)
+    finally:
+        if fd is not None:
+            os.close(fd)
     if len(raw) > MAX_SHELL_JSON:
         sys.exit(0)
     cfg = json.loads(raw.decode("utf-8", "replace"))
+except SystemExit:
+    raise
 except Exception:
     sys.exit(0)
 # Valid JSON of the wrong shape is not a config file, and setdefault will
@@ -122,11 +145,34 @@ if state == "on":
 else:
     cfg["plugins"].append(entry)
 
-tmp = p + ".omafetti.tmp"
-with open(tmp, "w") as f:
-    json.dump(cfg, f, indent=2)
-    f.write("\n")
-os.replace(tmp, p)
+# The replacement is staged under an unpredictable name created exclusively
+# by mkstemp — which never follows a symlink — in a directory verified to be
+# owned by us and writable by nobody else, then renamed over the destination
+# in one step. A predictable name here would let a pre-planted symlink turn
+# this write into the truncation of whatever the link pointed at.
+d = os.path.dirname(p)
+try:
+    st = os.stat(d)
+    if st.st_uid != os.getuid() or (st.st_mode & 0o022):
+        sys.exit(0)
+except OSError:
+    sys.exit(0)
+fd, tmp = tempfile.mkstemp(prefix=".shell.json.", suffix=".tmp", dir=d)
+try:
+    with os.fdopen(fd, "w") as f:
+        json.dump(cfg, f, indent=2)
+        f.write("\n")
+    try:
+        os.chmod(tmp, os.stat(p).st_mode & 0o777)
+    except OSError:
+        pass
+    os.replace(tmp, p)
+except BaseException:
+    try:
+        os.unlink(tmp)
+    except OSError:
+        pass
+    raise
 PY
     ;;
   *)

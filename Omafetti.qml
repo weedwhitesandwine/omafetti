@@ -99,7 +99,7 @@ Item {
   signal throwNow()
 
   function throwConfetti() {
-    themeColors.reload()
+    root.readPalette()
     root.flying = true
     // The panels need one layout pass before their layers know how big the
     // screen is; firing into a zero-sized layer would throw nothing.
@@ -139,12 +139,27 @@ Item {
     onTriggered: root.throwNow()
   }
 
-  Component.onCompleted: OmafettiState.overlay = root
+  Component.onCompleted: {
+    OmafettiState.overlay = root
+    root.readSettings()
+    root.readPalette()
+  }
 
   // ------------------------------------------------------------ persistence
+  // Nothing is written until the settings have been read back at least once,
+  // so a save can never put the in-memory defaults over the user's real
+  // choices before they have loaded.
+  property bool settingsLoaded: false
+
+  // Written to an exclusively-created temporary name beside the file and
+  // renamed over it: a bare `>` redirection truncates whatever already sits
+  // at that path — including the target of a symlink a restored backup could
+  // have left there — before the new content lands. `-O` confirms the state
+  // directory is ours before anything is staged in it.
   function saveSettings() {
+    if (!root.settingsLoaded) return
     Quickshell.execDetached(["bash", "-c",
-      'mkdir -p "$(dirname "$2")" && printf "%s\\n" "$1" > "$2"', "--",
+      'd=$(dirname "$2") && mkdir -p "$d" && [ -O "$d" ] && t=$(mktemp "$2.XXXXXXXX") && printf "%s\\n" "$1" > "$t" && mv -f "$t" "$2"', "--",
       JSON.stringify(root.osettings), root.settingsFile])
   }
 
@@ -210,26 +225,51 @@ Item {
 
   // Settings are a handful of short values, and a theme palette is a short
   // list of colours. Files far larger than that are neither, and this runs
-  // inside a shell process that lives for days — so they are refused before
-  // they are parsed or split rather than after.
+  // inside a shell process that lives for days — so a file it reads is a file
+  // it has to hold. FileView has no way to stop short of the end of a file,
+  // so it does not do the reading: everything comes through `head`, which
+  // puts the ceiling before the read rather than after it. Whatever is on
+  // disk, the shell is handed at most this many bytes; anything larger
+  // arrives cut off, fails to parse, and is refused, leaving the last good
+  // values in place.
   readonly property int settingsCeiling: 16 * 1024
   readonly property int paletteCeiling: 256 * 1024
   readonly property int paletteMaxLines: 2000
 
+  // The watchers read nothing themselves. blockAllReads keeps the file out of
+  // the shell's memory altogether, leaving them the one job wanted of them:
+  // saying that something changed.
   FileView {
     path: root.settingsFile
     printErrors: false
     watchChanges: true
-    onLoaded: {
-      try {
-        var raw = text()
-        if (!raw || raw.length > root.settingsCeiling) return
-        var s = JSON.parse(raw)
-        if (!s || typeof s !== "object" || Array.isArray(s)) return
-        root.osettings = s
-      } catch (e) {}
+    blockAllReads: true
+    preload: false
+    onFileChanged: root.readSettings()
+  }
+
+  function readSettings() {
+    settingsReader.running = false
+    settingsReader.running = true
+  }
+
+  Process {
+    id: settingsReader
+    command: ["head", "-c", String(root.settingsCeiling), "--", root.settingsFile]
+    stdout: StdioCollector {
+      waitForEnd: true
+      onStreamFinished: {
+        try {
+          var s = JSON.parse(text)
+          if (!s || typeof s !== "object" || Array.isArray(s)) return
+          root.osettings = s
+        } catch (e) {}
+      }
     }
-    onFileChanged: reload()
+    // No settings file yet is a perfectly good answer: it means first run,
+    // and the defaults in memory are the truth. Either way the answer is in,
+    // and settings may now be written back.
+    onExited: root.settingsLoaded = true
   }
 
   // Switching theme replaces the whole theme directory, which kills a file
@@ -239,40 +279,53 @@ Item {
   // live, and re-reads the palette file whenever they change.
   readonly property string themeProbe: "" + Color.background + Color.foreground
                                           + Color.accent + Color.urgent
-  onThemeProbeChanged: themeColors.reload()
+  onThemeProbeChanged: root.readPalette()
 
-  // The active theme's palette. Read-only.
+  // The active theme's palette. Read-only, through the same capped reader.
   FileView {
-    id: themeColors
     path: root.home + "/.local/state/omarchy/current/theme/colors.toml"
     printErrors: false
     watchChanges: true
-    onLoaded: {
-      // Themes name their colours one of two ways. Omarchy's own use words —
-      // red, green, blue and so on. Third-party themes very often ship the
-      // ANSI numbering instead, color0 to color15. Read both, or a theme of
-      // the second kind looks like it has no colours at all. color0/8 are the
-      // blacks and color7/15 the whites, so they are left out: confetti in the
-      // background colour is invisible confetti.
-      var wanted = ["red", "orange", "yellow", "green", "cyan", "blue", "magenta",
-                    "bright_red", "bright_yellow", "bright_green", "bright_cyan",
-                    "bright_blue", "bright_magenta", "accent",
-                    "color1", "color2", "color3", "color4", "color5", "color6",
-                    "color9", "color10", "color11", "color12", "color13", "color14"]
-      var found = []
-      var raw = String(text() || "")
-      if (raw.length > root.paletteCeiling) return
-      var lines = raw.split("\n")
-      var limit = Math.min(lines.length, root.paletteMaxLines)
-      for (var i = 0; i < limit; i++) {
-        var m = lines[i].match(/^\s*([a-z_0-9]+)\s*=\s*"(#[0-9a-fA-F]{6})"/)
-        if (!m) continue
-        if (wanted.indexOf(m[1]) < 0) continue
-        if (found.indexOf(m[2]) < 0) found.push(m[2])
+    blockAllReads: true
+    preload: false
+    onFileChanged: root.readPalette()
+  }
+
+  function readPalette() {
+    paletteReader.running = false
+    paletteReader.running = true
+  }
+
+  Process {
+    id: paletteReader
+    command: ["head", "-c", String(root.paletteCeiling), "--",
+              root.home + "/.local/state/omarchy/current/theme/colors.toml"]
+    stdout: StdioCollector {
+      waitForEnd: true
+      onStreamFinished: {
+        // Themes name their colours one of two ways. Omarchy's own use words —
+        // red, green, blue and so on. Third-party themes very often ship the
+        // ANSI numbering instead, color0 to color15. Read both, or a theme of
+        // the second kind looks like it has no colours at all. color0/8 are the
+        // blacks and color7/15 the whites, so they are left out: confetti in
+        // the background colour is invisible confetti.
+        var wanted = ["red", "orange", "yellow", "green", "cyan", "blue", "magenta",
+                      "bright_red", "bright_yellow", "bright_green", "bright_cyan",
+                      "bright_blue", "bright_magenta", "accent",
+                      "color1", "color2", "color3", "color4", "color5", "color6",
+                      "color9", "color10", "color11", "color12", "color13", "color14"]
+        var found = []
+        var lines = String(text || "").split("\n")
+        var limit = Math.min(lines.length, root.paletteMaxLines)
+        for (var i = 0; i < limit; i++) {
+          var m = lines[i].match(/^\s*([a-z_0-9]+)\s*=\s*"(#[0-9a-fA-F]{6})"/)
+          if (!m) continue
+          if (wanted.indexOf(m[1]) < 0) continue
+          if (found.indexOf(m[2]) < 0) found.push(m[2])
+        }
+        root.themePalette = found
       }
-      root.themePalette = found
     }
-    onFileChanged: reload()
   }
 
   // ------------------------------------------------------------- components

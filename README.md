@@ -101,7 +101,7 @@ on its own:
 
 | Command | Why |
 |---|---|
-| `bash -c 'mkdir -p … && printf … > …'` | Save `settings.json` |
+| `bash -c 'mkdir -p … && mktemp … && printf … && mv …'` | Save `settings.json`, staged under an exclusively-created temporary name and renamed into place |
 | `bash omafetti-ctl.sh bind`/`unbind` | Rewrite Omafetti's marked hotkey block |
 | `bash omafetti-ctl.sh bar on`/`off` | Show or hide the bar icon |
 | `hyprctl reload` | Called by the helper so a new hotkey takes effect immediately |
@@ -120,8 +120,16 @@ never as code:
   question.
 - Every text field on screen renders as plain text rather than rich text, so a
   stored value cannot cause the shell to load a resource.
-- Both files are checked against a size ceiling before they are parsed or split,
-  because this runs inside a shell process that lives for days.
+- Both files stop at a size ceiling as they are read, not after: the shell
+  reads them through `head`, so it is handed at most the ceiling however large
+  the file on disk actually is, and anything larger arrives cut off, fails to
+  parse, and is refused — this runs inside a shell process that lives for days.
+- Every file the plugin replaces is staged under an unpredictable name created
+  exclusively (`mktemp`/`mkstemp`, which never follow a symlink) in a directory
+  first verified to be owned by the user, then renamed over the destination in
+  one atomic step. A symlink planted at any name it writes — including
+  `shell.json` and `bindings.lua` staging — cannot redirect the write onto
+  another file, and a FIFO planted at `shell.json` cannot park the read forever.
 
 ## Dependencies
 
