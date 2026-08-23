@@ -232,11 +232,14 @@ Item {
   // disk, the shell is handed at most this many bytes; anything larger
   // arrives cut off, fails to parse, and is refused, leaving the last good
   // values in place.
-  // `head` opens a path the ordinary way: it follows a link wherever it
-  // points, and it waits for a pipe that will never produce anything —
-  // inside a shell process that stays up for days. Neither file here belongs
-  // to this plugin alone, so the open itself does the refusing: no links, no
-  // waiting, nothing that is not a plain file, and nothing over the ceiling.
+  // A file this plugin reads but does not own can be anything by the time it
+  // is opened: a link pointing elsewhere, a pipe that never produces anything,
+  // or something far too large. `head` opens a path the ordinary way and would
+  // follow the first and wait forever on the second, inside a shell process
+  // that stays up for days. So the open refuses on its own terms and hands
+  // back nothing at all rather than something over the ceiling. O_NOFOLLOW
+  // covers the final name only — a link in a parent directory is still
+  // followed, which is the same trust already placed in the home directory.
   readonly property string safeRead: [
     'import os, stat, sys',
     'path = sys.argv[1]; ceiling = int(sys.argv[2])',
@@ -244,17 +247,18 @@ Item {
     '    fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)',
     'except OSError:',
     '    raise SystemExit',
+    'raw = b""',
     'try:',
-    '    if not stat.S_ISREG(os.fstat(fd).st_mode):',
-    '        raise SystemExit',
-    '    with os.fdopen(fd, "rb") as handle:',
-    '        raw = handle.read(ceiling + 1)',
+    '    if stat.S_ISREG(os.fstat(fd).st_mode):',
+    '        with os.fdopen(fd, "rb") as handle:',
+    '            fd = None',
+    '            raw = handle.read(ceiling + 1)',
+    'except OSError:',
+    '    raw = b""',
     'finally:',
-    '    try:',
+    '    if fd is not None:',
     '        os.close(fd)',
-    '    except OSError:',
-    '        pass',
-    'if len(raw) <= ceiling:',
+    'if raw and len(raw) <= ceiling:',
     '    sys.stdout.buffer.write(raw)'
   ].join("\n")
 
