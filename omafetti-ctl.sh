@@ -77,11 +77,21 @@ check_size() {
 }
 
 strip_block() {
-  # print bindings.lua without Omafetti's marked block
+  # print bindings.lua without Omafetti's marked block, and without the blank
+  # line written above it. That blank is ours, so it comes out with the block:
+  # stripping only the marked lines left one behind on every re-bind, and
+  # three hotkey changes meant three orphan blank lines in a file this plugin
+  # promises to leave otherwise untouched. Blank lines the user has of their
+  # own are held and re-emitted; exactly one, immediately above the opening
+  # marker, is dropped.
   awk '
-    index($0, ">>> omafetti hotkey") { skip = 1; next }
+    function flush(  i) { for (i = 0; i < pending; i++) print ""; pending = 0 }
+    index($0, ">>> omafetti hotkey") { if (pending > 0) pending--; flush(); skip = 1; next }
     index($0, "<<< omafetti hotkey") { skip = 0; next }
-    !skip { print }
+    skip { next }
+    $0 == "" { pending++; next }
+    { flush(); print }
+    END { flush() }
   ' "$1"
 }
 
@@ -208,15 +218,14 @@ except ValueError as e:
 if not isinstance(cfg, dict):
     fail("refusing to edit %s — top level is not an object" % real)
 
-if not isinstance(cfg.get("bar"), dict):
-    cfg["bar"] = {}
-bar = cfg["bar"]
-if not isinstance(bar.get("layout"), dict):
-    bar["layout"] = {}
-layout = bar["layout"]
-if not isinstance(cfg.get("plugins"), list):
-    cfg["plugins"] = []
-plugins = cfg["plugins"]
+# Nothing is created that this entry does not need: turning the icon on adds
+# the one section it goes into, turning it off adds the plugins list it goes
+# into, and no other key is invented on the way past. A section of the wrong
+# type is left exactly as it is and the append below makes its own room, so
+# nothing is ever appended to whatever happened to be sitting there.
+bar = cfg.get("bar")
+layout = bar.get("layout") if isinstance(bar, dict) else None
+plugins = cfg.get("plugins") if isinstance(cfg.get("plugins"), list) else None
 
 
 def drop(seq):
@@ -224,30 +233,35 @@ def drop(seq):
 
 
 entry = None
-for key in ("left", "center", "right"):
-    if key not in layout:
-        continue
-    section = layout.get(key)
-    if not isinstance(section, list):
-        layout[key] = []
-        continue
-    for e in section:
+if isinstance(layout, dict):
+    for key in ("left", "center", "right"):
+        section = layout.get(key)
+        if not isinstance(section, list):
+            continue
+        for e in section:
+            if isinstance(e, dict) and e.get("id") == ID:
+                entry = e
+        layout[key] = drop(section)
+if plugins is not None:
+    for e in plugins:
         if isinstance(e, dict) and e.get("id") == ID:
             entry = e
-    layout[key] = drop(section)
-for e in plugins:
-    if isinstance(e, dict) and e.get("id") == ID:
-        entry = e
-cfg["plugins"] = drop(plugins)
+    cfg["plugins"] = drop(plugins)
 
 if entry is None:
     entry = {"id": ID}
 
 if state == "on":
-    if not isinstance(layout.get(sec), list):
-        layout[sec] = []
-    layout[sec].append(entry)
+    if not isinstance(cfg.get("bar"), dict):
+        cfg["bar"] = {}
+    if not isinstance(cfg["bar"].get("layout"), dict):
+        cfg["bar"]["layout"] = {}
+    if not isinstance(cfg["bar"]["layout"].get(sec), list):
+        cfg["bar"]["layout"][sec] = []
+    cfg["bar"]["layout"][sec].append(entry)
 else:
+    if not isinstance(cfg.get("plugins"), list):
+        cfg["plugins"] = []
     cfg["plugins"].append(entry)
 
 # Staged under an unpredictable name created exclusively by mkstemp — which
