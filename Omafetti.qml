@@ -107,6 +107,11 @@ Item {
   }
 
   function openSettings() {
+    // Nothing watches the settings file, so opening the card is when an edit
+    // made behind the plugin's back gets noticed. The drafts sync from what is
+    // already in memory so the card is right immediately; if the read comes
+    // back different, it syncs them again.
+    root.readSettings()
     root.syncDrafts()
     root.view = root.osettings.configured === true ? "settings" : "greeter"
     root.settingsOpen = true
@@ -269,20 +274,16 @@ Item {
   readonly property int paletteCeiling: 256 * 1024
   readonly property int paletteMaxLines: 2000
 
-  // The watchers read nothing themselves. blockAllReads keeps the file out of
-  // the shell's memory altogether, leaving them the one job wanted of them:
-  // saying that something changed. Measured rather than assumed: a 200 MB
-  // file planted at this path and replaced atomically, with the shell's
-  // resident memory sampled every 50 ms for six seconds, moved it by 0 MB.
-  FileView {
-    path: root.settingsFile
-    printErrors: false
-    watchChanges: true
-    blockAllReads: true
-    preload: false
-    onFileChanged: root.readSettings()
-  }
-
+  // Nothing watches these two files. A FileView bound to a path is the one
+  // thing here that cannot promise what it does with that path's contents —
+  // blockAllReads and preload:false were measured not to materialise a 200 MB
+  // file, but a measurement that cannot be reproduced by the person doubting
+  // it is not an answer, and no watcher is needed to get one. Both files are
+  // read on the triggers that actually matter: at startup, when the settings
+  // card opens, and — for the palette — whenever the shell's own live theme
+  // colours change. An edit made behind the plugin's back is picked up the
+  // next time the card is opened rather than the instant it lands, which is
+  // the whole of what this costs.
   function readSettings() {
     settingsReader.running = false
     settingsReader.running = true
@@ -299,6 +300,10 @@ Item {
           var s = JSON.parse(text)
           if (!s || typeof s !== "object" || Array.isArray(s)) return
           root.osettings = s
+          // Opening the card starts this read. Re-sync so it shows what is on
+          // disk rather than what was in memory — but never mid-capture, where
+          // it would drop the key the user is in the middle of pressing.
+          if (root.settingsOpen && !root.capturing) root.syncDrafts()
         } catch (e) {}
       }
     }
@@ -317,16 +322,10 @@ Item {
                                           + Color.accent + Color.urgent
   onThemeProbeChanged: root.readPalette()
 
-  // The active theme's palette. Read-only, through the same capped reader.
-  FileView {
-    path: root.home + "/.local/state/omarchy/current/theme/colors.toml"
-    printErrors: false
-    watchChanges: true
-    blockAllReads: true
-    preload: false
-    onFileChanged: root.readPalette()
-  }
-
+  // The active theme's palette. Read-only, through the same capped reader,
+  // on the theme-colour signal above rather than on a file watch — a theme
+  // switch replaces the whole theme directory, so a watch on this path dies
+  // with the old inode exactly when it would be wanted.
   function readPalette() {
     paletteReader.running = false
     paletteReader.running = true

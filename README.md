@@ -101,7 +101,7 @@ on its own:
 
 | Command | When |
 |---|---|
-| `python3 -c` (a short reader, inline below) | On load, whenever `settings.json` changes, and whenever the theme changes — to read those two files to a size ceiling |
+| `python3 -c` (a short reader, inline below) | On load, when the settings card is opened, and whenever the theme changes — to read those two files to a size ceiling |
 | `bash -c 'mkdir -p … && mktemp … && printf … && mv …'` | On **Apply** — save `settings.json`, staged under an exclusively-created temporary name and renamed into place |
 | `bash omafetti-ctl.sh bind`/`unbind` | On **Apply** — rewrite Omafetti's marked hotkey block |
 | `bash omafetti-ctl.sh bar on`/`off` | On **Apply** — show or hide the bar icon |
@@ -130,6 +130,12 @@ never as code:
   refused, a FIFO cannot park the read, and anything past the ceiling is
   refused — leaving the last good values in place. This runs inside a shell
   process that lives for days.
+- Nothing watches either file. Both are read on load, the settings file again
+  when the settings card is opened, and the palette again whenever the shell's
+  own live theme colours change. That reader above is therefore the only thing
+  that ever opens either path, and it is the only place a ceiling is needed. An
+  edit made behind Omafetti's back is picked up the next time the settings card
+  is opened rather than the instant it lands.
 - `bindings.lua` and `shell.json` belong to you, not to Omafetti. Each is
   resolved through any symlink first, because dotfile managers such as stow and
   chezmoi legitimately link these into a repository, and is edited only once the
