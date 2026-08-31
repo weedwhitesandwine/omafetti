@@ -72,10 +72,23 @@ Item {
   // theme's own colors.toml so a theme swap restyles the confetti with it.
   property var themePalette: []
 
+  // The choice carries two independent things — paper or letters, and which
+  // set of colours — so it is read apart again here rather than being stored
+  // as two settings the card would have to keep in step.
   function paletteFor(mode) {
-    if (mode === "theme" && root.themePalette.length >= 3) return root.themePalette
+    var wantsTheme = (mode === "theme" || mode === "letters-theme")
+    if (wantsTheme && root.themePalette.length >= 3) return root.themePalette
     return root.classicPalette
   }
+
+  function lettersFor(mode) {
+    return mode === "letters-classic" || mode === "letters-theme"
+  }
+
+  // Reads the draft while the card is open, so the preview button shows the
+  // choice being made rather than the one already saved.
+  readonly property bool activeLetters:
+    root.lettersFor(root.settingsOpen ? root.draftPalette : root.osettings.palette)
 
   function densityCount(d) {
     if (d === "light") return 250
@@ -431,6 +444,7 @@ Item {
           anchors.fill: parent
           palette: root.activePalette
           style: root.activeStyle
+          letterStorm: root.activeLetters
           pieceCount: root.activeCount
 
           onFinished: {
@@ -623,7 +637,17 @@ Item {
           Row {
             spacing: Style.spacing.md
             SettingLabel { text: "Colours" }
-            Row {
+            // Four pills rather than a shape switch beside a colour switch:
+            // there are only two of each, and naming the combinations outright
+            // is plainer than asking anyone to combine them in their head. A
+            // Flow because four labels of this length do not fit one line on a
+            // narrow panel, and a Row would draw the last one off the edge.
+            Flow {
+              // Bound to the card, never to the parent Row: a Row takes its
+              // width from its children, so asking it for a width from inside
+              // one is a loop, and QML resolves the loop by collapsing the row
+              // to nothing.
+              width: card.width - root.labelWidth - Style.spacing.md * 2
               spacing: Style.space(4)
               SettingPill {
                 label: "classic confetti"
@@ -634,6 +658,16 @@ Item {
                 label: "theme colours"
                 active: root.draftPalette === "theme"
                 onPicked: root.draftPalette = "theme"
+              }
+              SettingPill {
+                label: "O M A R C H Y (classic)"
+                active: root.draftPalette === "letters-classic"
+                onPicked: root.draftPalette = "letters-classic"
+              }
+              SettingPill {
+                label: "O M A R C H Y (theme)"
+                active: root.draftPalette === "letters-theme"
+                onPicked: root.draftPalette = "letters-theme"
               }
             }
           }
