@@ -11,7 +11,8 @@ typing straight through the celebration.
 
 ## Colours
 
-Two modes, chosen in the settings card.
+Four modes, chosen in the settings card: paper or letters, each in either set
+of colours.
 
 **Classic confetti** — the colours a real paper cannon comes loaded with,
 whatever your desktop happens to look like. That's the shot above.
@@ -23,6 +24,12 @@ is the same burst on the same wallpaper, in the theme's own pinks:
 ![Omafetti in theme colours](preview-theme.png?v=3)
 
 It stays faithful: a monochrome theme throws monochrome paper.
+
+**O M A R C H Y (classic)** and **O M A R C H Y (theme)** — the same burst,
+but every piece is a letter. Each one takes a glyph at random from the word,
+at a size somewhere between a little and a lot, and tumbles about its own axis
+like the paper does, so half of them show you their reverse face on the way
+down. The two options are the same two palettes as above.
 
 ## Settings
 

@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "id": "io.github.weedwhitesandwine.omafetti",
   "name": "Omafetti",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "author": "weedwhitesandwine",
   "license": "MIT",
   "description": "It had to happen sooner or later \u2014 a useless plugin that blows confetti on your screen",
