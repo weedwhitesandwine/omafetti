@@ -445,6 +445,7 @@ Item {
           palette: root.activePalette
           style: root.activeStyle
           letterStorm: root.activeLetters
+          glyphFamily: root.fontFamily
           pieceCount: root.activeCount
 
           onFinished: {
@@ -643,11 +644,12 @@ Item {
             // Flow because four labels of this length do not fit one line on a
             // narrow panel, and a Row would draw the last one off the edge.
             Flow {
-              // Bound to the card, never to the parent Row: a Row takes its
-              // width from its children, so asking it for a width from inside
-              // one is a loop, and QML resolves the loop by collapsing the row
-              // to nothing.
-              width: card.width - root.labelWidth - Style.spacing.md * 2
+              // Measured from the form rather than the card: the card's width
+              // includes its border and padding, which these pills sit inside,
+              // so using it would allow a line wider than the space there
+              // actually is. The form inherits its width from its parent, so
+              // unlike the enclosing Row it can be asked without a loop.
+              width: form.width - root.labelWidth - Style.spacing.md
               spacing: Style.space(4)
               SettingPill {
                 label: "classic confetti"

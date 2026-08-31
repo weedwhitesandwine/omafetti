@@ -17,6 +17,10 @@ Item {
   // random from `word`, so the screen fills with tumbling O M A R C H Y.
   property bool letterStorm: false
   property string word: "OMARCHY"
+  // The glyph box is assumed square-ish when the piece is sized, so the family
+  // is passed in rather than named here: a proportional fallback would leave
+  // wide glyphs sitting off the axis they tumble about.
+  property string glyphFamily: "monospace"
   property int pieceCount: 600
   // Room for a second burst thrown before the first has landed.
   readonly property int wantedPoolSize: Math.min(1600, Math.round(layer.pieceCount * 1.4))
@@ -249,9 +253,12 @@ Item {
         text: parent.letterText
         textFormat: Text.PlainText
         color: parent.tint
-        font.pixelSize: Math.round(parent.height)
+        // The delegate has no size of its own until fire() gives it one, so
+        // this binding is evaluated once against a height of zero. A pixel
+        // size of zero is not a legal font size.
+        font.pixelSize: Math.max(1, Math.round(parent.height))
         font.bold: true
-        font.family: "JetBrainsMono Nerd Font"
+        font.family: layer.glyphFamily
       }
     }
   }
