@@ -13,6 +13,10 @@ Item {
 
   property var palette: ["#ffffff"]
   property string style: "corners"
+  // Every piece of paper is a letter instead: each one takes a glyph at
+  // random from `word`, so the screen fills with tumbling O M A R C H Y.
+  property bool letterStorm: false
+  property string word: "OMARCHY"
   property int pieceCount: 600
   // Room for a second burst thrown before the first has landed.
   readonly property int wantedPoolSize: Math.min(1600, Math.round(layer.pieceCount * 1.4))
@@ -90,6 +94,23 @@ Item {
       p.vy = Math.sin(cAng) * cSp
     }
 
+    if (layer.letterStorm) {
+      // Sized over a wide range so the fall has depth to it: a field of
+      // identical glyphs reads as a texture rather than as falling paper.
+      var lh = layer.rnd(16, 46)
+      p.letter = layer.word.charAt(Math.floor(Math.random() * layer.word.length))
+      p.w = lh * 0.72; p.h = lh; p.r = 0
+      p.color = layer.pickOne(layer.palette)
+      p.spin = layer.rnd(-200, 200)
+      p.flip = layer.rnd(160, 760) * (Math.random() < 0.5 ? -1 : 1)
+      p.zAngle = layer.rnd(0, 360)
+      p.flipAngle = layer.rnd(0, 360)
+      p.swayAmp = layer.rnd(20, 95)
+      p.swayFreq = layer.rnd(1.5, 4.2)
+      p.swayPhase = layer.rnd(0, 6.28)
+      return p
+    }
+
     var shape = Math.random()
     if (shape < 0.6) {            // paper rectangle
       p.w = layer.rnd(7, 13); p.h = layer.rnd(9, 16); p.r = 0
@@ -100,6 +121,7 @@ Item {
     }
 
     p.color = layer.pickOne(layer.palette)
+    p.letter = ""
     p.spin = layer.rnd(-200, 200)
     p.flip = layer.rnd(160, 760) * (Math.random() < 0.5 ? -1 : 1)
     p.zAngle = layer.rnd(0, 360)
@@ -125,7 +147,8 @@ Item {
         item.width = p.w
         item.height = p.h
         item.radius = p.r
-        item.color = p.color
+        item.tint = p.color
+        item.letterText = p.letter
         item.x = p.x
         item.y = p.y
         item.visible = true
@@ -205,13 +228,30 @@ Item {
       // Tumble about the horizontal axis. Without projection this reads as a
       // squash to nothing and back, which is exactly how paper flips.
       property real flipAngle: 0
+      // A piece is either paper or a letter. Both take a colour from the
+      // palette; paper fills itself with it, a letter draws its glyph in it
+      // and leaves the rectangle empty, so the same pool and the same tumble
+      // serve both without a second Repeater.
+      property string letterText: ""
+      property color tint: "white"
       visible: false
       antialiasing: true
+      color: letterText === "" ? tint : "transparent"
       transform: Rotation {
         origin.x: width / 2
         origin.y: height / 2
         axis { x: 1; y: 0; z: 0 }
         angle: flipAngle
+      }
+      Text {
+        anchors.centerIn: parent
+        visible: parent.letterText !== ""
+        text: parent.letterText
+        textFormat: Text.PlainText
+        color: parent.tint
+        font.pixelSize: Math.round(parent.height)
+        font.bold: true
+        font.family: "JetBrainsMono Nerd Font"
       }
     }
   }
