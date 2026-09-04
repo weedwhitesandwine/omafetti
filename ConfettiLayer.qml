@@ -22,9 +22,11 @@ Item {
   // random from `word`, so the screen fills with tumbling O M A R C H Y.
   property bool letterStorm: false
   property string word: "OMARCHY"
-  // The glyph box is assumed square-ish when the piece is sized, so the family
-  // is passed in rather than named here: a proportional fallback would leave
-  // wide glyphs sitting off the axis they tumble about.
+  // Passed in rather than named here so the letters take the shell's own font
+  // instead of one hardcoded here. A proportional family is fine: a piece is
+  // sized from its line height alone, so a wide glyph simply overflows its
+  // transparent rectangle — the tumble is about the horizontal axis through
+  // the centre, and culling tests position rather than width.
   property string glyphFamily: "monospace"
   property int pieceCount: 600
   // Room for a second burst thrown before the first has landed.
