@@ -440,7 +440,7 @@ Item {
         mask: Region {}
 
         ConfettiLayer {
-          id: layer
+          id: confettiField
           anchors.fill: parent
           palette: root.activePalette
           style: root.activeStyle
@@ -472,8 +472,8 @@ Item {
         // and one that never becomes ready gives the burst up promptly instead
         // of pinning the hotkey for twelve seconds.
         function tryFire() {
-          if (confettiPanel.layerBusy) { layer.fire(); return }
-          if (layer.fire()) {
+          if (confettiPanel.layerBusy) { confettiField.fire(); return }
+          if (confettiField.fire()) {
             confettiPanel.layerBusy = true
             root.busyLayers++
             return

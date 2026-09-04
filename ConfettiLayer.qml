@@ -9,7 +9,12 @@ import QtQuick
 // confetti and spinning sticks. Idle pieces are invisible and cost nothing,
 // so the pool can sit loaded between bursts.
 Item {
-  id: layer
+  // Not `layer`: every Item carries a built-in `layer` grouped property, and
+  // inside the Repeater delegate below — a separate component — the delegate's
+  // own properties are resolved before this file's ids. `layer.glyphFamily`
+  // there found QQuickItemLayer instead of this object and evaluated to
+  // undefined, silently leaving every glyph in the fallback font.
+  id: field
 
   property var palette: ["#ffffff"]
   property string style: "corners"
@@ -23,7 +28,7 @@ Item {
   property string glyphFamily: "monospace"
   property int pieceCount: 600
   // Room for a second burst thrown before the first has landed.
-  readonly property int wantedPoolSize: Math.min(1600, Math.round(layer.pieceCount * 1.4))
+  readonly property int wantedPoolSize: Math.min(1600, Math.round(field.pieceCount * 1.4))
 
   // The pool only ever changes size while it is empty, so poolSize is set
   // rather than bound. Shrinking it with pieces still in the air would strand
@@ -33,13 +38,13 @@ Item {
   // shell process. Density is changed from the settings card, which is exactly
   // when a burst can still be falling.
   property int poolSize: 0
-  Component.onCompleted: layer.poolSize = layer.wantedPoolSize
-  onWantedPoolSizeChanged: layer.applyPoolSize()
+  Component.onCompleted: field.poolSize = field.wantedPoolSize
+  onWantedPoolSizeChanged: field.applyPoolSize()
 
   function applyPoolSize() {
-    if (layer.poolSize === layer.wantedPoolSize || layer.alive > 0) return
-    layer.clear()
-    layer.poolSize = layer.wantedPoolSize
+    if (field.poolSize === field.wantedPoolSize || field.alive > 0) return
+    field.clear()
+    field.poolSize = field.wantedPoolSize
   }
 
   signal finished()
@@ -65,22 +70,22 @@ Item {
 
   function makePiece() {
     var p = {}
-    var w = layer.width
-    var h = layer.height
+    var w = field.width
+    var h = field.height
 
-    if (layer.style === "rain") {
-      p.x = layer.rnd(-40, w + 40)
-      p.y = layer.rnd(-h * 0.7, -20)
-      p.vx = layer.rnd(-90, 90)
-      p.vy = layer.rnd(80, 260)
-    } else if (layer.style === "cannon") {
+    if (field.style === "rain") {
+      p.x = field.rnd(-40, w + 40)
+      p.y = field.rnd(-h * 0.7, -20)
+      p.vx = field.rnd(-90, 90)
+      p.vy = field.rnd(80, 260)
+    } else if (field.style === "cannon") {
       // A cone from the bottom centre. Speed falls off towards the edges of
       // the cone, so the burst has a soft round front rather than a wedge.
-      var spread = layer.bell(-1.05, 1.05)
+      var spread = field.bell(-1.05, 1.05)
       var ang = -Math.PI / 2 + spread
-      var sp = h * layer.bell(1.1, 3.2) * (1 - 0.3 * Math.abs(spread))
-      p.x = w / 2 + layer.rnd(-40, 40)
-      p.y = h + layer.rnd(0, 30)
+      var sp = h * field.bell(1.1, 3.2) * (1 - 0.3 * Math.abs(spread))
+      p.x = w / 2 + field.rnd(-40, 40)
+      p.y = h + field.rnd(0, 30)
       p.vx = Math.cos(ang) * sp
       p.vy = Math.sin(ang) * sp
     } else {
@@ -89,50 +94,50 @@ Item {
       // speeds are given in screens-per-second, so the plume clears the top of
       // any monitor.
       var left = Math.random() < 0.5
-      var cSpread = layer.bell(-0.85, 0.85)
+      var cSpread = field.bell(-0.85, 0.85)
       var cAng = (left ? -Math.PI / 4 : -3 * Math.PI / 4) + cSpread
-      var cSp = h * layer.bell(1.3, 3.4) * (1 - 0.3 * Math.abs(cSpread))
-      p.x = left ? layer.rnd(-30, 60) : w - layer.rnd(-30, 60)
-      p.y = h + layer.rnd(0, 30)
+      var cSp = h * field.bell(1.3, 3.4) * (1 - 0.3 * Math.abs(cSpread))
+      p.x = left ? field.rnd(-30, 60) : w - field.rnd(-30, 60)
+      p.y = h + field.rnd(0, 30)
       p.vx = Math.cos(cAng) * cSp
       p.vy = Math.sin(cAng) * cSp
     }
 
-    if (layer.letterStorm) {
+    if (field.letterStorm) {
       // Sized over a wide range so the fall has depth to it: a field of
       // identical glyphs reads as a texture rather than as falling paper.
-      var lh = layer.rnd(16, 46)
-      p.letter = layer.word.charAt(Math.floor(Math.random() * layer.word.length))
+      var lh = field.rnd(16, 46)
+      p.letter = field.word.charAt(Math.floor(Math.random() * field.word.length))
       p.w = lh * 0.72; p.h = lh; p.r = 0
-      p.color = layer.pickOne(layer.palette)
-      p.spin = layer.rnd(-200, 200)
-      p.flip = layer.rnd(160, 760) * (Math.random() < 0.5 ? -1 : 1)
-      p.zAngle = layer.rnd(0, 360)
-      p.flipAngle = layer.rnd(0, 360)
-      p.swayAmp = layer.rnd(20, 95)
-      p.swayFreq = layer.rnd(1.5, 4.2)
-      p.swayPhase = layer.rnd(0, 6.28)
+      p.color = field.pickOne(field.palette)
+      p.spin = field.rnd(-200, 200)
+      p.flip = field.rnd(160, 760) * (Math.random() < 0.5 ? -1 : 1)
+      p.zAngle = field.rnd(0, 360)
+      p.flipAngle = field.rnd(0, 360)
+      p.swayAmp = field.rnd(20, 95)
+      p.swayFreq = field.rnd(1.5, 4.2)
+      p.swayPhase = field.rnd(0, 6.28)
       return p
     }
 
     var shape = Math.random()
     if (shape < 0.6) {            // paper rectangle
-      p.w = layer.rnd(7, 13); p.h = layer.rnd(9, 16); p.r = 0
+      p.w = field.rnd(7, 13); p.h = field.rnd(9, 16); p.r = 0
     } else if (shape < 0.85) {    // streamer
-      p.w = layer.rnd(3, 5); p.h = layer.rnd(18, 30); p.r = 0
+      p.w = field.rnd(3, 5); p.h = field.rnd(18, 30); p.r = 0
     } else {                      // dot
-      p.w = layer.rnd(6, 11); p.h = p.w; p.r = p.w / 2
+      p.w = field.rnd(6, 11); p.h = p.w; p.r = p.w / 2
     }
 
-    p.color = layer.pickOne(layer.palette)
+    p.color = field.pickOne(field.palette)
     p.letter = ""
-    p.spin = layer.rnd(-200, 200)
-    p.flip = layer.rnd(160, 760) * (Math.random() < 0.5 ? -1 : 1)
-    p.zAngle = layer.rnd(0, 360)
-    p.flipAngle = layer.rnd(0, 360)
-    p.swayAmp = layer.rnd(20, 95)
-    p.swayFreq = layer.rnd(1.5, 4.2)
-    p.swayPhase = layer.rnd(0, 6.28)
+    p.spin = field.rnd(-200, 200)
+    p.flip = field.rnd(160, 760) * (Math.random() < 0.5 ? -1 : 1)
+    p.zAngle = field.rnd(0, 360)
+    p.flipAngle = field.rnd(0, 360)
+    p.swayAmp = field.rnd(20, 95)
+    p.swayFreq = field.rnd(1.5, 4.2)
+    p.swayPhase = field.rnd(0, 6.28)
     return p
   }
 
@@ -140,12 +145,12 @@ Item {
   // been given a size yet must not be counted as flying, or the burst is
   // recorded as in progress and never lands.
   function fire() {
-    if (layer.width <= 0 || layer.height <= 0) return false
+    if (field.width <= 0 || field.height <= 0) return false
     var placed = 0
-    for (var i = 0; i < layer.poolSize && placed < layer.pieceCount; i++) {
-      if (layer.pieces[i]) continue
-      var p = layer.makePiece()
-      layer.pieces[i] = p
+    for (var i = 0; i < field.poolSize && placed < field.pieceCount; i++) {
+      if (field.pieces[i]) continue
+      var p = field.makePiece()
+      field.pieces[i] = p
       var item = repeater.itemAt(i)
       if (item) {
         item.width = p.w
@@ -159,35 +164,35 @@ Item {
       }
       placed++
     }
-    layer.alive += placed
-    if (layer.alive > 0) frames.running = true
+    field.alive += placed
+    if (field.alive > 0) frames.running = true
     return placed > 0
   }
 
   function clear() {
-    for (var i = 0; i < layer.poolSize; i++) {
-      if (!layer.pieces[i]) continue
-      layer.pieces[i] = null
+    for (var i = 0; i < field.poolSize; i++) {
+      if (!field.pieces[i]) continue
+      field.pieces[i] = null
       var item = repeater.itemAt(i)
       if (item) item.visible = false
     }
-    layer.alive = 0
+    field.alive = 0
     frames.running = false
   }
 
   function step(dt) {
-    layer.clock += dt
-    var h = layer.height
-    var w = layer.width
-    var d = 1 - layer.drag * dt
+    field.clock += dt
+    var h = field.height
+    var w = field.width
+    var d = 1 - field.drag * dt
 
-    for (var i = 0; i < layer.poolSize; i++) {
-      var p = layer.pieces[i]
+    for (var i = 0; i < field.poolSize; i++) {
+      var p = field.pieces[i]
       if (!p) continue
 
-      p.vy = (p.vy + layer.gravity * dt) * d
+      p.vy = (p.vy + field.gravity * dt) * d
       p.vx = p.vx * d
-      var sway = p.swayAmp * Math.sin(layer.clock * p.swayFreq + p.swayPhase)
+      var sway = p.swayAmp * Math.sin(field.clock * p.swayFreq + p.swayPhase)
       p.x += (p.vx + sway) * dt
       p.y += p.vy * dt
       p.zAngle += p.spin * dt
@@ -195,8 +200,8 @@ Item {
 
       var item = repeater.itemAt(i)
       if (p.y > h + 90 || p.x < -250 || p.x > w + 250) {
-        layer.pieces[i] = null
-        layer.alive--
+        field.pieces[i] = null
+        field.alive--
         if (item) item.visible = false
         continue
       }
@@ -208,11 +213,11 @@ Item {
       }
     }
 
-    if (layer.alive <= 0) {
+    if (field.alive <= 0) {
       frames.running = false
-      layer.clock = 0
-      layer.applyPoolSize()
-      layer.finished()
+      field.clock = 0
+      field.applyPoolSize()
+      field.finished()
     }
   }
 
@@ -221,12 +226,12 @@ Item {
     running: false
     // A long stall between frames would teleport every piece; better to lose
     // a moment of motion than to have the burst jump across the screen.
-    onTriggered: layer.step(Math.min(frameTime, 0.05))
+    onTriggered: field.step(Math.min(frameTime, 0.05))
   }
 
   Repeater {
     id: repeater
-    model: layer.poolSize
+    model: field.poolSize
 
     Rectangle {
       // Tumble about the horizontal axis. Without projection this reads as a
@@ -258,7 +263,7 @@ Item {
         // size of zero is not a legal font size.
         font.pixelSize: Math.max(1, Math.round(parent.height))
         font.bold: true
-        font.family: layer.glyphFamily
+        font.family: field.glyphFamily
       }
     }
   }
