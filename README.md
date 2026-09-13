@@ -112,8 +112,8 @@ on its own:
 | `bash -c 'mkdir -p … && mktemp … && printf … && mv …'` | On **Apply** — save `settings.json`, staged under an exclusively-created temporary name and renamed into place |
 | `bash omafetti-ctl.sh bind`/`unbind` | On **Apply** — rewrite Omafetti's marked hotkey block |
 | `bash omafetti-ctl.sh bar on`/`off` | On **Apply** — show or hide the bar icon |
+| `python3 omafetti-edit.py` | Run by the helper to make both edits: `bindings.lua` by line, `shell.json` as JSON rather than by text substitution |
 | `hyprctl reload` | Run by the helper after a hotkey change, so the new hotkey takes effect immediately |
-| `python3` | Run by the helper to edit `shell.json` as JSON rather than with text substitution |
 
 Every one of them exits as soon as it has done its job.
 
@@ -147,11 +147,16 @@ never as code:
   resolved through any symlink first, because dotfile managers such as stow and
   chezmoi legitimately link these into a repository, and is edited only once the
   resolved file and its directory are confirmed to be yours and writable by
-  nobody else. The replacement is staged in that same directory under an
-  unpredictable name created exclusively (`mktemp`/`mkstemp`, which never follow
-  a symlink) and renamed over the target in one atomic step — so a managed
-  symlink keeps pointing where it pointed, the repository copy is the one that
-  changes, and a symlink planted at a staging name cannot redirect the write.
+  nobody else. That directory is then held open for the rest of the edit, and
+  the read, the staging and the rename are all made through it rather than by
+  name again. The replacement is staged in the same directory under an
+  unpredictable name, created exclusively and refusing a symlink, and renamed
+  over the target in one atomic step — so a managed symlink keeps pointing
+  where it pointed, the repository copy is the one that changes, and neither a
+  symlink planted at a staging name nor a directory swapped part-way through
+  can redirect the write.
+- Bytes that are not valid UTF-8 are carried through `bindings.lua` unchanged,
+  so a comment in another encoding survives an edit intact.
 - The hotkey block is rewritten only when its two markers form exactly one
   properly ordered pair. If the block has been half-removed — by hand, or by a
   merge in a dotfiles repository — the file is left exactly as it stands and the
