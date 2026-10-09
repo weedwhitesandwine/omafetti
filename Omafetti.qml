@@ -4,6 +4,7 @@ import Quickshell.Wayland
 import QtQuick
 
 import qs.Commons
+import qs.Commons as Commons
 import qs.Ui
 import "."
 
@@ -25,12 +26,12 @@ Item {
   }
 
   // ------------------------------------------------------------------ theme
-  property color foreground: Color.menu.text
-  property color background: Color.menu.background
-  property color border: Color.menu.border
-  property color scrim: Color.menu.scrim
-  property color selectedBackground: Color.menu.selectedBackground
-  property color selectedText: Color.menu.selectedText
+  property color foreground: Commons.Color.menu.text
+  property color background: Commons.Color.menu.background
+  property color border: Commons.Color.menu.border
+  property color scrim: Commons.Color.menu.scrim
+  property color selectedBackground: Commons.Color.menu.selectedBackground
+  property color selectedText: Commons.Color.menu.selectedText
   property var borderSpec: Border.surfaceSpec("menu", "border", border, Math.max(1, Style.space(2)))
   readonly property int cornerRadius: Style.cornerRadius
   readonly property int labelWidth: Style.space(170)
@@ -331,8 +332,8 @@ Item {
   // it by having the theme pushed to it over IPC instead. Omafetti has no such
   // channel, so it watches the foundational colours the shell *does* update
   // live, and re-reads the palette file whenever they change.
-  readonly property string themeProbe: "" + Color.background + Color.foreground
-                                          + Color.accent + Color.urgent
+  readonly property string themeProbe: "" + Commons.Color.background + Commons.Color.foreground
+                                          + Commons.Color.accent + Commons.Color.urgent
   onThemeProbeChanged: root.readPalette()
 
   // The active theme's palette. Read-only, through the same capped reader,
